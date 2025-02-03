@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Crypto Arbitrage Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .progress { height: 25px; }
+        .exchange-table th { background-color: #f8f9fa; }
+    </style>
+</head>
+<body>
+    <div class="container mt-4">
+        <!-- Progress Bar -->
+        <div class="mb-4">
+            <h4>Scanning Progress</h4>
+            <div class="progress">
+                <div id="scanProgress" class="progress-bar progress-bar-striped" role="progressbar" style="width: 0%"></div>
+            </div>
+        </div>
+
+        <!-- Exchange Prices Table -->
+        <div class="mb-5">
+            <h3>Real-Time Prices (BTC/USDT)</h3>
+            <table class="table exchange-table">
+                <thead>
+                    <tr>
+                        <th>Exchange</th>
+                        <th>Price</th>
+                        <th>Difference</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody id="priceTable">
+                    <!-- Prices will load here -->
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Arbitrage Opportunities -->
+        <div class="mb-4">
+            <h3>Best Arbitrage Opportunities</h3>
+            <div id="opportunities" class="list-group">
+                <!-- Opportunities will load here -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Auto-refresh every 2 seconds
+        setInterval(() => {
+            loadPrices();
+            loadOpportunities();
+        }, 2000);
+
+        // Load Exchange Prices
+        async function loadPrices() {
+            const response = await fetch('/api/prices');
+            const data = await response.json();
+            
+            const tbody = document.getElementById('priceTable');
+            tbody.innerHTML = data.map(exchange => `
+                <tr>
+                    <td>${exchange.name}</td>
+                    <td>$${exchange.price.toFixed(2)}</td>
+                    <td class="${exchange.difference < 0 ? 'text-danger' : 'text-success'}">
+                        ${exchange.difference.toFixed(2)}%
+                    </td>
+                    <td>${exchange.recommendation}</td>
+                </tr>
+            `).join('');
+        }
+
+        // Modified loadOpportunities function
+async function loadOpportunities() {
+    try {
+        const response = await fetch('/api/opportunities');
+        if (!response.ok) throw new Error('Network error');
+        const data = await response.json();
+        
+        const container = document.getElementById('opportunities');
+        if (data.length === 0) {
+            container.innerHTML = `
+                <div class="list-group-item text-center py-4">
+                    <h4>No arbitrage opportunities found</h4>
+                    <p class="text-muted">Scanning ${document.getElementById('scanProgress').style.width} complete</p>
+                </div>
+            `;
+        } else {
+            container.innerHTML = data.map(opp => `
+                <div class="list-group-item">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">${opp.coin_pair}</h5>
+                        <span class="badge bg-success">$${opp.net_profit.toFixed(2)} Profit</span>
+                    </div>
+                    <div class="row mt-2">
+                        <div class="col-md-6">
+                            <p class="mb-1">Buy: ${opp.exchange_from}</p>
+                            <p class="text-success">$${opp.buy_price.toFixed(2)}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <p class="mb-1">Sell: ${opp.exchange_to}</p>
+                            <p class="text-danger">$${opp.sell_price.toFixed(2)}</p>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <small class="text-muted">Fees: $${opp.fees.toFixed(2)}</small>
+                        </div>
+                        <div class="col-md-6 text-end">
+                            <small class="text-muted">${opp.timestamp}</small>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+    } catch (error) {
+        console.error('Failed to load opportunities:', error);
+        container.innerHTML = `
+            <div class="list-group-item text-center py-4 text-danger">
+                <h4>Error loading opportunities</h4>
+                <p>${error.message}</p>
+            </div>
+        `;
+    }
+}
+
+        // Load Progress
+        async function updateProgress() {
+            const response = await fetch('/api/scan-status');
+            const { progress } = await response.json();
+            document.getElementById('scanProgress').style.width = `${progress}%`;
+        }
+        setInterval(updateProgress, 1000);
+    </script>
+</body>
+</html>

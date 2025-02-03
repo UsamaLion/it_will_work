@@ -1,0 +1,39 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container">
+    <h2>Manage Coins</h2>
+    
+    <!-- Add Coin Form -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="POST">
+                <div class="input-group">
+                    <input type="text" name="coin_pair" 
+                           class="form-control" 
+                           placeholder="Enter coin pair (e.g., BTC/USDT)"
+                           required>
+                    <button type="submit" class="btn btn-primary">Add Coin</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Selected Coins List -->
+    <div class="card">
+        <div class="card-body">
+            <h5>Selected Coins</h5>
+            <ul class="list-group">
+                {% for coin in coins %}
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                    {{ coin.coin_pair }}
+                    <a href="#" class="btn btn-danger btn-sm">Remove</a>
+                </li>
+                {% else %}
+                <li class="list-group-item">No coins selected</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+</div>
+{% endblock %}
