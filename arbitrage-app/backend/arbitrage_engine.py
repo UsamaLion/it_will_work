@@ -4,14 +4,36 @@ import mysql.connector
 from datetime import datetime
 
 class ArbitrageEngine:
-    def __init__(self, loop, exchanges=['binance', 'kraken', 'coinbasepro', 'huobi', 'okex', 'bitstamp']):
+    def __init__(self, loop, exchanges=['binance', 'kraken', 'huobi', 'kucoin', 'bitfinex', 'okex']):
         self.loop = loop
-        self.exchanges = {ex: getattr(ccxt, ex)({
-            'enableRateLimit': True,
-            'asyncio_loop': self.loop,
-            'dns_resolver': False
-        }) for ex in exchanges}
-        self.coins = ['BTC/USDT', 'ETH/USDT', 'XRP/USDT']  # Start with 3 coins for testing
+        self.exchanges = {}
+        
+        # Initialize exchanges with error handling
+        for ex in exchanges:
+            try:
+                exchange_class = getattr(ccxt, ex)
+                self.exchanges[ex] = exchange_class({
+                    'enableRateLimit': True,
+                    'asyncio_loop': self.loop,
+                    'dns_resolver': False
+                })
+                # Test connection
+                self.loop.run_until_complete(self.exchanges[ex].load_markets())
+                print(f"Successfully initialized {ex}")
+            except Exception as e:
+                print(f"Failed to initialize {ex}: {str(e)}")
+                continue
+
+        # Top 100 coins by market cap (example list - update as needed)
+        self.coins = [
+            'BTC/USDT', 'ETH/USDT', 'BNB/USDT', 'XRP/USDT', 'ADA/USDT',
+            'SOL/USDT', 'DOT/USDT', 'DOGE/USDT', 'AVAX/USDT', 'LUNA/USDT',
+            # Add 90 more coins here...
+        ]
+        
+        # If you want dynamic coin listing, use:
+        # self.coins = self.get_top_coins()
+        
         self.scan_progress = 0
         self.db = mysql.connector.connect(
             host='localhost',
@@ -19,6 +41,12 @@ class ArbitrageEngine:
             password='',
             database='crypto_arbitrage'
         )
+
+    def get_top_coins(self):
+        """Fetch top 100 coins from CoinGecko API"""
+        import requests
+        response = requests.get('https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&per_page=100')
+        return [f"{coin['symbol'].upper()}/USDT" for coin in response.json()]
 
     async def fetch_prices(self, coin_pair):
         prices = {}
@@ -28,7 +56,7 @@ class ArbitrageEngine:
                 prices[exchange_name] = ticker['last']
                 await exchange.close()
             except Exception as e:
-                print(f"Error fetching {exchange_name}: {str(e)}")
+                print(f"Error fetching {exchange_name} {coin_pair}: {str(e)}")
         return prices
 
     def calculate_arbitrage(self, prices, coin_pair):
@@ -54,7 +82,7 @@ class ArbitrageEngine:
                 'price_diff': price_diff,
                 'fees': fees,
                 'net_profit': net_profit,
-                'timestamp': datetime.now()
+                'timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             })
         return opportunities
 
@@ -69,14 +97,14 @@ class ArbitrageEngine:
                 
                 # Update progress
                 self.scan_progress = int((index + 1) / total_coins * 100)
-                await asyncio.sleep(1)  # Rate limit
+                await asyncio.sleep(0.5)  # Faster scanning
             except Exception as e:
                 print(f"Error scanning {coin}: {str(e)}")
 
     async def run(self):
         while True:
             await self.run_scan()
-            await asyncio.sleep(60)  # Rescan every 60 seconds
+            await asyncio.sleep(300)  # Rescan every 5 minutes
 
     def save_opportunities(self, opportunities):
         cursor = self.db.cursor()
