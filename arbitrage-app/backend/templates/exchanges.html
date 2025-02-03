@@ -1,0 +1,49 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container">
+    <h2>Manage Exchanges</h2>
+    
+    <!-- Add Exchange Form -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="POST">
+                <div class="row">
+                    <div class="col-md-4">
+                        <select name="exchange" class="form-select" required>
+                            <option value="">Select Exchange</option>
+                            {% for ex in supported_exchanges %}
+                            <option value="{{ ex }}">{{ ex|title }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <input type="text" name="api_key" class="form-control" placeholder="API Key" required>
+                    </div>
+                    <div class="col-md-4">
+                        <input type="text" name="api_secret" class="form-control" placeholder="API Secret" required>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary mt-3">Connect Exchange</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Connected Exchanges List -->
+    <div class="card">
+        <div class="card-body">
+            <h5>Connected Exchanges</h5>
+            <ul class="list-group">
+                {% for ex in exchanges %}
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                    {{ ex.exchange_name|title }}
+                    <a href="#" class="btn btn-danger btn-sm">Disconnect</a>
+                </li>
+                {% else %}
+                <li class="list-group-item">No exchanges connected</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+</div>
+{% endblock %}
